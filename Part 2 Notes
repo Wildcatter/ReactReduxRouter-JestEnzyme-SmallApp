@@ -1,0 +1,333 @@
+Part 2
+
+---------------SNAPSHOT TESTING WITH JEST ---------------
+1) Jest is from FB, Jest encapsulates Jasmine
+2) Writing a snapshot test, which is pretty new. Jest renders component out, dumps it to file, then just compares it to file in future
+3) Make a new file called Search.spec.js
+4) Jest finds .spec.js files automatically!
+5) Nice to have tests aligned with components you're testing.
+6) Import React, Search, and then renderer from 'react-test-renderer'
+
+test('Search snapshot test', () => {
+  const component = renderer.create(<Search />)
+  const tree = component.toJSON()
+  expect(tree).toMatchSnapshot()
+})
+
+
+
+------------ CONFIGURING AND RUNNING TEST ----------------
+1) Gotta do some babel shit to test
+
+"env": {
+    "test": {
+      "plugins": ["transform-es2015-modules-commonjs"]
+    }
+  }
+
+2) Now it adds correct babel transofmration in test environment
+3) In NPM change script to be
+
+"test": "NODE_ENV=test jest"
+
+4) npm test -- -u will update snapshot
+5) Jest also has --watch that auto runs when you change stuff
+
+
+
+-------------- SHALLOW TESTING WITH ENZYME -------------
+1) Going to use enzyme from airBnB and facebook uses it
+2) If you're going to test React, you'll be using Enzyme
+3) Import shallow from enzyme and shallowToJson
+4) Change code just a tad
+
+test('Search snapshot test', () => {
+  const component = shallow(<Search />)
+  const tree = shallowtoJSON()
+  expect(tree).toMatchSnapshot()
+})
+
+5) shallow renders everything in Search, but goes no deeper than that. Sees properties going to other components, but only goes 1 layer deep.
+6) Jest just compares 1 json structure to another
+7) shallowToJson dumps it to JSON that you can then do a snapshot test on
+
+
+-------- TESTING THE NUMBER OF SHOWCARDS ----------
+1) Import ShowCard and also preload from data.json
+2) Have 15 shows want to make sure it renders 15 cards
+3) New test
+
+test('Search should render a ShowCard for each show', () => {
+  const component = shallow(<Search />)
+  expect(component.find(ShowCard).length).toEqual(preload.shows.length)
+})
+
+4) Want to have as many ShowCards as there are shows
+
+
+---------- TESTING THE SEARCH FIELD -----------
+1) New test for the search input
+
+test('Search should render correct amount of shows based on search', () => {
+  const searchWord = 'house'
+  const component = shallow(<Search />)
+  component.find('input').simulate('change', {target: {value: searchWord}})
+  const showCount = preload.shows.filter((show) => `${show.title} ${show.description}`.toUpperCase().indexOf(searchWord.toUpperCase()) >= 0).length
+  expect(component.find(ShowCard).length).toEqual(showCount)
+})
+
+2) Enzyme does not do event bubbling for you
+3) So if you want to simulate change event, have to simulate where handler is
+4) For UNIT TESTING not INTEGRATION testing
+5) Enzyme has two additional depths of rendering, but you have to use JSDOM and Bootstrap, avoid bringing in renderer if you can.
+6) May need renderer if you're using DOM API's
+7) Abstract modules out and test business logic, don't really test react components
+
+
+
+----------- TEST COVERAGE WITH ISTANBUL -----------
+1) Already built into Jest.
+
+npm run test -- --coverage
+
+2) Shows you how much stuff is covered by tests, pretty cool. Can also open in browser
+
+open coverage/lcov-report/index.html
+
+3) Apparently open only works in OSX
+4) Now add script for coverage to package.json
+
+"cover": "npm run test -- --coverage"
+
+5) -- APPENDS COMMAND TO PREVIOUS SCRIPT
+
+
+*************************
+DATA
+IN
+REACT
+****************************
+
+-------------- URL Parameters --------------
+1) New filed called Details.js, will have trailer/poster other cool stuff, for now just an h1 so we can see it rendered
+2) In ClientApp set up a route for it, with an id that can be changed in parameters
+
+<Match pattern='/details/:id' component={Details} />
+
+3) Make sure index.html has /public/bundle.js script
+4) See what's passed into the component
+
+ <div className='details'>
+      <pre><code>
+        {JSON.stringify(this.props, null, 4)}
+      </code></pre>
+      </div>
+
+5) So we see it has a property of params and it's passed in URL
+
+
+
+------------------ SHARING STATE ------------
+1) Want to pull from preload JSON, if this was real app it'd probably be cool to import from 2 different places, but assuming it's coming from API don't want to request some data twice
+2) Could push data from data.json to common ancestor component have data passed down to both components
+3) Refactor Search.js to get shows from router rather than importing
+4) GOING TO GO OVER ADVANCED USE CASE
+5) Go to Details, notice there is no state, it's "stateless"
+6) We can actually just make it a function that returns markup. This is a "STATELESS FUNCTIONAL COMPONENT"
+7) These can accept properties, takes them as a parameter
+
+const Detals = (props) => {
+  return <h1>{props.params.id}</h1>
+}
+
+8) 3 ways to make components. createClass if you need state + other functionality, or just the functions that's stateless and basically just a render mathod
+9) Go to ClientApp, need to pass prams into Search, but not instantiating it, just passing a blueprint for a component
+10) Can use a function
+
+<Match
+  pattern='/search'
+  component={() => <Search />}
+/>
+
+11) So we need to send props into Search, use spread operator.
+
+component={(props) => <Search {...props} />}
+
+12) Now we need to send preload into it
+
+component={(props) => <Search shows={preload.shows} {...props} />}
+
+
+
+------------------ UPDATING THE SEARCH COMPONENT -----
+1) So, before, props being passed are from BrowserRouter. When it matches a route it just passes off a handful of props. We wanted to preserve those properties to reference the id
+2) Now since we're getting shows passed, we don't need preload in Search, delete it
+3) Now instead of preload.shows, use this.props.shows
+
+
+----------- PASSING DATA TO DETAILS COMPONENT -------
+1) Pass correct show down to Details
+2) Go to ClientApp, going to do similar thing with component, instead of all shows just correct show based on id parameter
+3) So we're going to make Details a function too, takes props, remember PROPS ARE WHATS IN ID, so can use id to match up correct show to pass
+
+component={(props) => {
+            const shows = preload.shows.filter((show) => props.params.id === show.imdbID)
+            return <Details show={shows[0]} {...props} />
+           }}
+          />
+
+4) Not optimal, assuming id is going to match up with correct show. Just rolling with that
+5) Now Details is just a dumbass component that doesn't do anything but show markup, just totally encapsulated in router
+
+
+---------- ORGANIZING CODE IN REACT COMPONENTS -------
+1) Always have propTypes first
+2) getInitialState is second
+3) Then lifecycle methods
+4) Then all functions WE wrote
+5) Very last thing is render
+
+
+--------- FINISHING DETAILS COMPONENT -----------
+1) Set your propTypes, pull in the needed stuff from your show object
+
+<div className='details'>
+        <header>
+          <h1>DevApps</h1>
+        </header>
+        <section>
+          <h1>{title}</h1>
+          <h2>({year})</h2>
+          <img src={`/public/img/posters/${poster}`} alt="Poster!" />
+          <p>{description}</p>
+        </section>
+        <div>
+          <iframe src={`https://www.youtube-nocookie.com/embed/${trailer}?rel=0&amp;controls=0&amp;showinfo=0`} frameBorder='0' allowFullScreen />
+        </div>
+      </div>
+
+
+
+--------------- CREATING A HEADER COMPONENT -------
+1) Make header own component
+2) New file called Header.js, going ot use es6 class syntax
+3) Pull into Details.js
+4) Now clicking on DevApps takes you back to homepage
+
+
+------------ Conditional Display Logic Part 1 -------
+1) Now want to integrate this into Search
+2) Need to know when to show Header or Search
+3) Go into Header, have to put propTypes below component
+
+const { func, bool, string } = React.PropTypes
+Header.propTypes = {
+  handleSearchTermChange: func,
+  showSearch: bool,
+  searchTerm: string
+}
+
+
+------------ CONDITIONAL DISPLAY LOGIC PART 2---------
+1) On search page will input, then on details page will have back button to go back to search
+
+class Header extends React.Component {
+  render() {
+    let utilSpace
+    if (this.props.showSearc) {
+      utilSpace = <input onChange={this.props.handleSearchTermChange} value={this.props.searchTerm} type='text' placeholder='Search' />
+    } else {
+      utilSpace = (
+        <h2>
+          <Link to='/search'>
+            Back
+          </Link>
+        </h2>
+      )
+    }
+
+2) So utilSpace can equal one of two components and it spits it out below the h1 header
+3) Now go to Search
+4) Change header to
+
+<Header
+  showSearch
+  searchTerm={this.state.searchTerm}
+  handleSearchTermChange={this.handleSearchTermChange}
+/>
+
+5) showSearch like that just implies true
+
+
+
+--------- MAKING THE SHOWCARD COMPONENT CLICKABLE----
+1) Wrap everything in return in a Link
+
+<Link to={`/details/${this.props.imdbID}`}>
+
+2) Emphasizes he does this a lot
+
+const { poster, title, year, description, imdbID } = this.props
+
+3) Keep in mind when you're passing in parameters to components, whatever you can store in a variable you can pass around
+4) Just passing handleSearchTermChange from search to header.
+
+
+
+
+------------ REACT LIFECYCLE METHODS -----------
+1) Dealt with one, getInitialState/constructor
+2) Can hook into lifecycle
+2) ComponentWillMount = right before component gets put into DOM, almost never use
+3) ComponentDidMount = right after its put on DOM, will use a lot
+4) ComponentDidMount = can guarantee that browser API is available. AJAX
+5) ComponentWillUnmount = right before it leaves the DOM, specifically for clean up
+6) If you dont want a component to update, use ShouldComponentUpdate and set it to false. Recommend not using until you actually NEED it
+7) React has perf tools, can tell you where you're slow and MAY need ShouldComponentUpdate
+8) Avoid SVG's in React components
+
+
+
+------- LIFECYCLE METHODS DOCUMENTATIOn --------
+1) Go to Details for AJAX request
+2) Import axios
+3) Add state and lifecycle method
+
+getInitialState () {
+    return {
+      omdbData: {}
+    }
+  },
+  componentDidMount () {
+    axios.get(`http://www.omdbapi.com/?i=${this.props.show.imdbID}`)
+      .then((response) => {
+        this.setState({
+          omdbData: response.data})
+      })
+      .catch((error) => console.error('axios error', error))
+  },
+
+  4) Now under render
+
+  let rating
+    if (this.state.omdbData.imdbRating) {
+      rating = <h3>{this.state.omdbData.imdbRating}</h3>
+    } else {
+      rating = <img src='/public/img/loading.png' alt='loading indicator' />
+    }
+
+    5) So you either have the rating info back or you have a loading thang
+    6) Great pattern for loading and componentDidMount is when it's loading have loading pattern
+    7) When using this.setState in Details, if you use a regular function instead of arrow it will break because of "this"
+    8) "this" if you don't use arrow function is going to refer to the promise or window, needs to be details tho
+    9) Arrow function doesn't create new context, so it's context in whatever it's called in
+
+
+
+
+    ------------ REACT DEVELOPMENT TOOLS ----------
+    1) On Details page, with React dev tools you can see state in the component, everything that came back from API
+    2) Useful to see what props are being passed where
+    3) Whatever you select in Dev Tools can be accessed by using $r in console, so you can mess around with it, like searchTermChange
+    4) $r.state gives you the state of it, so for searchTerm itll be whatever u typed
+

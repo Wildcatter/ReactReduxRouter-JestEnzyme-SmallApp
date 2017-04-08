@@ -1,37 +1,41 @@
 import React from 'react'
-import preload from '../public/data.json'
+import { connect } from 'react-redux'
 import ShowCard from './ShowCard'
+import Header from './Header'
+const { arrayOf, shape, string } = React.PropTypes
 
 const Search = React.createClass({
-  getInitialState () {
-    return {
-      searchTerm: ''
-    }
-  },
-  handleSearchTermChange (event) {
-    this.setState({searchTerm: event.target.value})
+  propTypes: {
+    shows: arrayOf(shape({
+      title: string,
+      description: string
+    })),
+    searchTerm: string
   },
   render () {
     return (
       <div className='search'>
-        <header>
-          <h1> DevApps </h1>
-          <input onChange={this.handleSearchTermChange} value={this.state.searchTerm} type='text' placeholder='Search' />
-        </header>
+        <Header showSearch />
         <div>
-          {preload.shows
-            .filter((show) => {
-              return `${show.title} ${show.description}`.toUpperCase().indexOf(this.state.searchTerm.toUpperCase()) >= 0
-            })
+          {this.props.shows
+            .filter((show) => `${show.title} ${show.description}`.toUpperCase().indexOf(this.props.searchTerm.toUpperCase()) >= 0)
             .map((show) => {
-            return (
-              <ShowCard key={show.imdbID} {...show} />
-            )
-          })}
+              return (
+                <ShowCard key={show.imdbID} {...show} />
+              )
+            })}
         </div>
       </div>
     )
   }
 })
 
-export default Search
+const mapStateToProps = (state) => {
+  return {
+    searchTerm: state.searchTerm
+  }
+}
+
+export const Unwrapped = Search
+
+export default connect(mapStateToProps)(Search)
